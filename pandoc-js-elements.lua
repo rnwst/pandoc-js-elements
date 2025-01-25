@@ -127,6 +127,12 @@ const replacePlaceholder = async (placeholderId, replacement) => {
 };
 
 const md = {};
+
+const getMDLabel = (id) => {
+    const elt = document.getElementById(id);
+    elt.removeAttribute('id');
+    return elt;
+};
 ]]}
 
 
@@ -148,11 +154,10 @@ local function create_md_labels(elt)
             elt.attributes[key] = nil -- remove attribute
             md_label_counter = md_label_counter + 1
             local label_id = 'md-label-' .. md_label_counter
-            local span = pandoc.Span(inlines,
-                                     pandoc.Attr(label_id, {'md-label'}))
+            local span = pandoc.Span(inlines, pandoc.Attr(label_id))
             table.insert(md_labels, pandoc.Plain(span))
             table.insert(label_defs, string.format(
-                "%s = document.getElementById('%s');", key, label_id))
+                "%s = getMDLabel('%s');", key, label_id))
         end
     end
     local label_defs_js = ''
