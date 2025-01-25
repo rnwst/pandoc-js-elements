@@ -192,7 +192,7 @@ end
 
 
 local function code_block(elt)
-    if has_value(elt.classes, 'js') and elt.attributes.exec ~= false then
+    if has_value(elt.classes, 'js') and elt.attributes.exec ~= 'false' then
         contains_js_elements = true
 
         code_block_counter = code_block_counter + 1
@@ -208,12 +208,15 @@ local function code_block(elt)
         end
         table.insert(elements_js, elt.text.. '\n')
 
-        if has_value(elt.classes, 'include') then
+        if elt.attributes.include == 'true' then
             remove_value(elt.classes, 'include')
             return elt
         end
 
-        return {}
+        return {} -- delete element from AST
+    elseif has_value(elt.classes, 'js') and elt.attributes.exec == 'false'
+      and elt.attributes.include == 'false' then
+        return {} -- delete element from AST
     end
 end
 
