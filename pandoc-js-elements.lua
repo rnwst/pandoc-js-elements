@@ -1,43 +1,24 @@
--- Utilities -------------------------------------------------------------------
-local function has_value(tab, val)
-    for _, v in pairs(tab) do
-        if v == val then
-            return true
-        end
-    end
-    return false
-end
+-- <Utilities> ---------------------------------------------------------------------------------------------------------
 
-
--- Remove value from numerically indexed table.
-local function remove_value(tab, val)
-    for i, v in ipairs(tab) do
-        if v == val then
-            table.remove(tab, i)
-            return
-        end
-    end
-end
-
-
-local function isempty(tab)
-    return next(tab) == nil
-end
-
-
+---Write content to given file path.
+---@param path string
+---@param content string
 local function write_file(path, content)
     local dir = pandoc.path.directory(path)
     -- Attempt to create directory, don't throw error if it already exists.
     pcall(pandoc.system.make_directory, dir, true)
     local file = io.open(path, 'w')
-    file:write(content)
-    file:close()
+    if file then
+        file:write(content)
+        file:close()
+    end
 end
 
 
 -- Plain text is not considered since we need a placeholder element in order to
--- replace is later.
-local phrasing_tags = {
+-- replace it later.
+---@type List<string>
+local phrasing_tags = pandoc.List{
     'abbr', 'audio', 'b', 'bdi', 'bdo', 'br', 'button', 'canvas', 'cite',
     'code', 'data', 'datalist', 'dfn', 'em', 'embed', 'i', 'iframe', 'img',
     'input', 'kbd', 'label', 'mark', 'math', 'meter', 'noscript', 'object',
@@ -48,7 +29,8 @@ local phrasing_tags = {
 
 
 -- Flow tags 'main' and 'h1' were left out, as they should not be used.
-local flow_tags_less_phrasing_tags = {
+---@type List<string>
+local flow_tags_less_phrasing_tags = pandoc.List{
     'a', 'address', 'article', 'aside', 'blockquote', 'del', 'details',
     'dialog', 'div', 'dl', 'fieldset', 'figure', 'footer', 'form', 'h2', 'h3',
     'h4', 'h5', 'h6', 'header', 'hgroup', 'hr', 'ins', 'map', 'mark', 'math',
@@ -57,37 +39,57 @@ local flow_tags_less_phrasing_tags = {
 }
 
 
+---Determine whether the given HTML tag is a custom tag.
+---@param tag string
+---@return boolean
 local function is_custom_tag(tag)
     -- After the first character, HTML custom elements can contain non-ASCII
     -- characters, as documented here:
     -- https://html.spec.whatwg.org/multipage/custom-elements.html#prod-pcenchar
     -- However, since Lua's string library only deals with ASCII, this is not
-    -- implemented.
-    local disallowed_names = {
+    -- currently implemented.
+    local disallowed_names = pandoc.List{
         'annotation-xml', 'color-profile', 'font-face', 'font-face-src',
         'font-face-uri', 'font-face-format', 'font-face-name', 'missing-glyph'
     }
     return tag:match('^[a-z][a-z%-%.0-9_]+$') and tag:match('^[^%-]*%-[^%-]*$')
-        and not has_value(disallowed_names, tag)
+        and not disallowed_names:includes(tag)
 end
 
 
+---Decode a URL-encoded string.
+---@param s any
+---@return string
 local function url_decode(s)
-    return string.gsub(s, '%%(%x%x)', function(hex)
+    local decoded = string.gsub(s, '%%(%x%x)', function(hex)
         return string.char(tonumber(hex, 16))
     end)
+    return decoded
 end
---------------------------------------------------------------------------------
+
+-- </Utilities> --------------------------------------------------------------------------------------------------------
 
 
+---@type boolean  Whether to execute this filter; overwritten by document front matter
 local js_elements = false
-local contains_js_elements = false
-local code_block_counter = 0
-local placeholder_elt_counter = 0
-local md_label_counter = 0
-local md_labels = {}
 
-local elements_js = {[[
+---@type boolean  Whether document contains executable JS code
+local contains_js_elements = false
+
+---@type integer  Counter for code blocks
+local code_block_counter = 0
+
+---@type integer  Counter for placeholder elements
+local placeholder_elt_counter = 0
+
+---@type integer  Counter for markdown labels
+local md_label_counter = 0
+
+---@type List<Plain>
+local md_labels = pandoc.List{}
+
+---@type List<string>
+local elements_js = pandoc.List{[[
 // Header ----------------------------------------------------------------------
 
 'use strict';
@@ -97,7 +99,7 @@ const replacePlaceholder = async (placeholderId, replacement) => {
   if (placeholder.id.match(/^placeholder-elt-\d+$/)) {
     placeholder.removeAttribute('id');
   }
-  // Await replacement in case it is a promise.
+  // Await replacement in case it is a Promise.
   replacement = await replacement;
   const replacementType = typeof replacement;
   if (replacementType === 'object' && replacement instanceof Element) {
@@ -136,34 +138,35 @@ const getMDLabel = (id) => {
 ]]}
 
 
+---Create JS which retrieves Markdown label elements.
+---@param elt (CodeBlock | Code | Image)
+---@return string
 local function create_md_labels(elt)
     -- Attributes whose keys start with `md.` are parsed as markdown and
     -- the resultant HTML elements appended to the document. They can later
     -- be retrieved via JS and incoporated into generated elements. This is
     -- useful e.g. when using mathematical symbols in figure axis labels.
-    local label_defs = {}
+    ---@type List<string>
+    local label_defs = pandoc.List{}
     for key, val in pairs(elt.attributes) do
         -- If key starts with 'md.' and has at least one character
         -- afterwards...
         if key:find('^md%.[0-9a-zA-Z_]+$') then
             -- TBD: use run_lua_filter function to run appropriate filters,
             -- such as pandoc-xref-native (once it's been written...)
-            local inlines =
-                pandoc.read(val, 'markdown', PANDOC_READER_OPTIONS)
-                    .blocks[1].content
+            local inlines = pandoc.read(val, 'markdown', PANDOC_READER_OPTIONS).blocks[1].content
             elt.attributes[key] = nil -- remove attribute
             md_label_counter = md_label_counter + 1
             local label_id = 'md-label-' .. md_label_counter
             local span = pandoc.Span(inlines, pandoc.Attr(label_id))
-            table.insert(md_labels, pandoc.Plain(span))
-            table.insert(label_defs, string.format(
-                "%s = getMDLabel('%s');", key, label_id))
+            md_labels:insert(pandoc.Plain(span))
+            label_defs:insert(string.format("%s = getMDLabel('%s');", key, label_id))
         end
     end
     local label_defs_js = ''
-    if not isempty(label_defs) then
+    if #label_defs ~= 0 then
         label_defs_js = string.format([[
-// Auto-generated markdown label definitions
+// Auto-generated Markdown label definitions
 %s
 
 ]], table.concat(label_defs, '\n'))
@@ -173,6 +176,9 @@ local function create_md_labels(elt)
 end
 
 
+---Return Id for placeholder elements.
+---@param elt (CodeBlock | Code | Image)
+---@return string
 local function get_placeholder_id(elt)
     local id
     if elt.identifier ~= '' and elt.identifier ~= nil then
@@ -185,8 +191,12 @@ local function get_placeholder_id(elt)
 end
 
 
+---Add JS to replace placeholder element to module.
+---@param label_defs_js string
+---@param placeholder_id string
+---@param inline_js string
 local function insert_elt_js(label_defs_js, placeholder_id, inline_js)
-    table.insert(elements_js, string.format([[
+    elements_js:insert(string.format([[
 
 /* *****************************************************************************
  * Element #%s */
@@ -196,12 +206,15 @@ replacePlaceholder('%s', %s);
 end
 
 
+---Add code block JS to module.
+---@param elt CodeBlock
+---@return CodeBlock | {} | nil
 local function code_block(elt)
-    if has_value(elt.classes, 'js') and elt.attributes.exec ~= 'false' then
+    if elt.classes:includes('js') and elt.attributes.exec ~= 'false' then
         contains_js_elements = true
 
         code_block_counter = code_block_counter + 1
-        table.insert(elements_js, string.format([[
+        elements_js:insert(string.format([[
 
 /* *****************************************************************************
  * Code block #%s */
@@ -209,27 +222,31 @@ local function code_block(elt)
 
         local label_defs_js = create_md_labels(elt)
         if label_defs_js ~= '' then
-            table.insert(elements_js, label_defs_js)
+            elements_js:insert(label_defs_js)
         end
-        table.insert(elements_js, elt.text.. '\n')
+        elements_js:insert(elt.text .. '\n')
 
         if elt.attributes.include == 'true' then
-            remove_value(elt.classes, 'include')
+            elt.classes:remove(table.pack(elt.classes:find('include'))[2])
             return elt
         end
 
         return {} -- delete element from AST
-    elseif has_value(elt.classes, 'js') and elt.attributes.exec == 'false'
+    elseif elt.classes:includes('js') and elt.attributes.exec == 'false'
       and elt.attributes.include == 'false' then
         return {} -- delete element from AST
     end
 end
 
 
+---Process inline code elements.
+---@param elt       Code     Code element
+---@param is_inline boolean  whether to use <div> or <span> for placeholder element
+---@return RawInline | RawBlock | nil
 local function process_inline_code(elt, is_inline)
-    if has_value(elt.classes, 'js') and elt.attributes.exec ~= false then
+    if elt.classes:includes('js') and elt.attributes.exec ~= false then
         contains_js_elements = true
-        remove_value(elt.classes, 'js')
+        elt.classes:remove(table.pack(elt.classes:find('js'))[2])
 
         elt.identifier = get_placeholder_id(elt)
 
@@ -244,9 +261,8 @@ local function process_inline_code(elt, is_inline)
 
         if elt.attributes.tag then
             local given_tag = elt.attributes.tag
-            if has_value(phrasing_tags, given_tag)
-              or (not is_inline
-                  and has_value(flow_tags_less_phrasing_tags, given_tag))
+            if phrasing_tags:includes(given_tag)
+              or (not is_inline and flow_tags_less_phrasing_tags:includes(given_tag))
               or is_custom_tag(given_tag) then
                 placeholder_tag = given_tag
                 elt.attributes.tag = nil
@@ -269,18 +285,31 @@ local function process_inline_code(elt, is_inline)
 end
 
 
+---Filter function for [Code](lua://Code) elements.
+---@param elt Code
+---@return RawInline | nil
 local function code(elt)
+    ---@type RawInline | nil
     return process_inline_code(elt, true)
 end
 
 
+---Filter function for [Para](lua://Para) elements.
+---@param elt Para
+---@return RawBlock | nil
 local function para(elt)
     if #elt.content == 1 and elt.content[1].tag == 'Code' then
-        return process_inline_code(elt.content[1], false)
+        local code_elt = elt.content[1]
+        ---@cast code_elt Code
+        ---@type RawBlock | nil
+        return process_inline_code(code_elt, false)
     end
 end
 
 
+---Filter function for [Image](lua://Image) elements.
+---@param elt Image
+---@return Image | nil
 local function image(elt)
     if contains_js_elements then
         local js = url_decode(elt.src):match('^`(.+)`$')
@@ -294,13 +323,8 @@ local function image(elt)
 end
 
 
-local function get_js_path(doc_rel_path)
-    local md_dir = pandoc.path.directory(PANDOC_STATE.input_files[1])
-    return pandoc.path.join({md_dir, doc_rel_path})
-end
-
-
 if FORMAT:match 'html' or FORMAT:match 'native' or FORMAT:match 'json' then
+    ---@type Filter
     return {
         {
             Meta = function(meta)
@@ -326,28 +350,26 @@ if FORMAT:match 'html' or FORMAT:match 'native' or FORMAT:match 'json' then
             Pandoc = function(doc)
                 if contains_js_elements then
                     -- Append md_labels to document.
-                    local attr = pandoc.Attr('md-labels', {},
-                                             {style = 'display: none'})
-                    table.insert(doc.blocks,
-                                 pandoc.Div(pandoc.Blocks(md_labels), attr))
+                    local attr = pandoc.Attr('md-labels', {}, {style = 'display: none'})
+                    doc.blocks:insert(pandoc.Div(pandoc.Blocks(md_labels), attr))
 
                     -- Write elements.js.
                     local rel_path = 'js/elements.js';
                     write_file(
-                        get_js_path(rel_path),
+                        pandoc.path.join({pandoc.path.directory(PANDOC_STATE.input_files[1]), rel_path}),
                         table.concat(elements_js, '\n')
                     )
 
                     -- Add to header-includes for standalone documents.
-                    local scriptElt = pandoc.RawInline(
+                    local script_elt = pandoc.RawInline(
                         'html',
                         '<script type="module" src="' .. rel_path ..
                             '"></script>'
                     )
                     if doc.meta['header-includes'] then
-                        table.insert(doc.meta['header-includes'], scriptElt)
+                        (doc.meta['header-includes'] --[[@as List<string>]]):insert(script_elt)
                     else
-                        doc.meta['header-includes'] = {scriptElt}
+                        doc.meta['header-includes'] = pandoc.List{script_elt}
                     end
                     -- Also define 'elementsJS' metadata key to allow more
                     -- fine-grained control over module loading.

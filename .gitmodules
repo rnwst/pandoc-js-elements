@@ -1,3 +1,6 @@
 [submodule "luacheck"]
 	path = luacheck
 	url = https://github.com/rnwst/pandoc-luacheckrc
+[submodule "types"]
+	path = types
+	url = https://github.com/rnwst/pandoc-lua-types
