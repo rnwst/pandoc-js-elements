@@ -1,5 +1,19 @@
 -- <Utilities> ---------------------------------------------------------------------------------------------------------
 
+---@type List<string>
+local html_formats = pandoc.List{
+   'chunkedhtml',
+   'html',
+   'html5',
+   'html4',
+   'slideous',
+   'slidy',
+   'dzslides',
+   'revealjs',
+   's5'
+}
+
+
 ---Write content to given file path.
 ---@param path string
 ---@param content string
@@ -323,7 +337,7 @@ local function image(elt)
 end
 
 
-if FORMAT:match 'html' or FORMAT:match 'native' or FORMAT:match 'json' then
+if html_formats:includes(FORMAT) or FORMAT:match('native') then
     ---@type Filter
     return {
         {
