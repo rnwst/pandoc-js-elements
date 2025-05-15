@@ -81,7 +81,7 @@ which results in the following HTML fragment:
 > ```
 If the provided expression is a function, a placeholder element will be created in place of the inline code element (with the specified Id, classes, and attributes), and the function will be executed once after the document has loaded with the placeholder element passed as the only argument. This is useful for creating responsive elements (e.g. elements that automatically change size when the page width changes). Some useful functions for creating responsive elements are included in [`js-utils/responsive-elts.js`](js-utils/responsive-elts.js). The function [`responsiveElt`](https://github.com/rnwst/pandoc-js-elements/blob/master/js-utils/responsive-elts.js#L77) transforms a given element update function into one which executes every time the element changes size.
 
-Note that a placeholder element will be created even when the provided expression isn't a function. Where the creation of an element doesn't happen instantly (e.g. because a library needs to be loaded, or data processed before a graph can be drawn), it is desirable to avoid layout shift. To this end, it is helpful to have an element placeholder of the same element type as its replacement (so that the same CSS rules apply) and to be able to specify HTML attributes such as `width` or `height` on the element. Both of these actions are supported. To specify the element type, one may set a `tag` attribute on the inline code element. All other attributes and all classes other than `js` are passed through to the placeholder. For example, to create an [image](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/img) element placeholder with the class `fullwidth` and a `style` attribute:
+Note that a placeholder element will be created even when the provided expression isn't a function. Where the creation of an element doesn't happen instantly (e.g. because a library needs to be loaded, or data processed before a graph can be drawn), it is desirable to avoid layout shift. To this end, it is helpful to have an element placeholder of the same element type as its replacement (so that the same CSS rules apply) and to be able to specify HTML attributes such as `width` or `height` on the element. Both of these actions are supported. To specify the element type, one may set a `tag` attribute on the inline code element. If no tag is specified, a `<span>` is used by default. All other attributes and all classes other than `js` are passed through to the placeholder element. For example, to create an [image](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/img) placeholder element with the class `fullwidth` and a `style` attribute:
 ```markdown
 Here is an image: `replacement_image_handle`{tag="img" .fullwidth style="aspect-ratio: 16/9"}
 ```
@@ -95,6 +95,7 @@ Previous paragraph.
 
 Subsequent paragraph.
 ```
+In this case, the placeholder element defaults to `<div>`.
 
 Because creating images or SVGs using JavaScript is very common, the Markdown image syntax is used to provide a simpler method for creating an `<img>` placeholder:
 ```markdown
