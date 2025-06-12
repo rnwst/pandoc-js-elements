@@ -279,8 +279,9 @@ local md_labels = pandoc.List {}
 ---@type List<{content: string, mappings: List<List<integer>>}>
 local elements_js = pandoc.List {}
 
--- luacheck: ignore 631
----@type string  Markdown source file content needed for source mapping, to be populated once we know the document contains JS elements
+---@type string
+---Markdown source file content needed for source mapping, to be populated once
+---we know the document contains JS elements
 local source = ''
 
 ---@type integer  Last Markdown source file position (row and column), used for source mapping purposes
@@ -694,5 +695,11 @@ then
             end
          end,
       },
+   }
+elseif TEST == true then
+   -- Export functions for testing!
+   return {
+      url_decode = url_decode,
+      split_lines = split_lines,
    }
 end

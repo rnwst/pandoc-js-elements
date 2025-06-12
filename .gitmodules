@@ -1,3 +1,6 @@
 [submodule "types"]
-	path = types
+	path = LuaCATS/pandoc-types
 	url = https://github.com/rnwst/pandoc-lua-types
+[submodule "LuaCATS/busted"]
+	path = LuaCATS/busted
+	url = https://github.com/LuaCATS/busted.git

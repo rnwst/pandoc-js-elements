@@ -55,4 +55,10 @@ stds.pandoc = {
     }
 }
 
-std = 'lua54+pandoc'
+stds.test = {
+    read_globals = {
+        'TEST'
+    }
+}
+
+std = 'lua54+pandoc+busted+test'
