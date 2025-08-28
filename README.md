@@ -122,7 +122,7 @@ was selected - `katex` in this case):
 > ```html
 > <span><span class="math inline">\dfrac{dx}{dy}</span></span>
 > ```
-(Note the requirement to escape backslashes in code block attributes.)
+(Note the requirement to escape backslashes in code block attributes, unless the [`all_symbols_escapable` extension](https://pandoc.org/MANUAL.html#extension-all_symbols_escapable) has been disabled.)
 
 <!--
 # Installation
