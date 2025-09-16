@@ -83,7 +83,7 @@ If the provided expression is a function, a placeholder element will be created 
 
 Note that a placeholder element will be created even when the provided expression isn't a function. Where the creation of an element doesn't happen instantly (e.g. because a library needs to be loaded, or data processed before a graph can be drawn), it is desirable to avoid layout shift. To this end, it is helpful to have an element placeholder of the same element type as its replacement (so that the same CSS rules apply) and to be able to specify HTML attributes such as `width` or `height` on the element. Both of these actions are supported. To specify the element type, one may set a `tag` attribute on the inline code element. If no tag is specified, a `<span>` is used by default. All other attributes and all classes other than `js` are passed through to the placeholder element. For example, to create an [image](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Elements/img) placeholder element with the class `fullwidth` and a `style` attribute:
 ```markdown
-Here is an image: `replacement_image_handle`{tag="img" .fullwidth style="aspect-ratio: 16/9"}
+Here is an image: `replacement_image_handle`{.js tag="img" .fullwidth style="aspect-ratio: 16/9"}
 ```
 To avoid creating invalid HTML, only HTML tags belonging to [phrasing content](https://developer.mozilla.org/en-US/docs/Web/HTML/Guides/Content_categories#phrasing_content) are permitted.
 
@@ -91,7 +91,7 @@ Where an inline code element of the `js` class is the only element in a paragrap
 ```markdown
 Previous paragraph.
 
-`replacement_figure_handle`{tag="figure"}
+`replacement_figure_handle`{.js tag="figure"}
 
 Subsequent paragraph.
 ```
